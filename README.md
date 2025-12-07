@@ -11,6 +11,6 @@
 
 - Protocolos utilizados: GPIO, I2C, IRQ
 
--Diagrama: ![Diagrama de Blocos](img/DiagramaBlocos.png)
+- Diagrama: ![Diagrama de Blocos](img/DiagramaBlocos.png)
 
--Vídeo das funcionalidades da arma: https://youtu.be/70cM7c7KZPk
+- Vídeo das funcionalidades da arma: https://youtu.be/70cM7c7KZPk
