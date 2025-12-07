@@ -59,6 +59,12 @@ static SemaphoreHandle_t shoot_sem  = NULL;
 static SemaphoreHandle_t reload_sem = NULL;
 static SemaphoreHandle_t e_sem = NULL;  // Semáforo para tecla E
 
+// Variáveis de debounce (movidas para escopo de arquivo para evitar warning do cppcheck)
+static uint32_t last_toggle_time = 0;
+static uint32_t last_shoot_time  = 0;
+static uint32_t last_reload_time = 0;
+static uint32_t last_e_time = 0;
+
 // ===================== Protos =====================
 static void mpu6050_reset(void);
 static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp);
@@ -133,20 +139,9 @@ static gyro_bias_t calibrate_gyro_bias(void) {
 }
 
 // ===================== GPIO Callback ==============
-// cppcheck-suppress variableScope
 static void gpio_callback(uint gpio, uint32_t events) {
     uint32_t now = to_ms_since_boot(get_absolute_time());
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-    // Variáveis estáticas para debounce - precisam manter estado entre chamadas
-    // cppcheck-suppress variableScope
-    static uint32_t last_toggle_time = 0;
-    // cppcheck-suppress variableScope
-    static uint32_t last_shoot_time  = 0;
-    // cppcheck-suppress variableScope
-    static uint32_t last_reload_time = 0;
-    // cppcheck-suppress variableScope
-    static uint32_t last_e_time = 0;
 
     if (gpio == BTN_TOGGLE_GPIO && (events & GPIO_IRQ_EDGE_FALL)) {
         if ((now - last_toggle_time) > DEBOUNCE_MS) {
@@ -371,6 +366,5 @@ int main(void) {
 
     vTaskStartScheduler();
     while (true) {
-        // nunca deveria chegar aqui
     }
 }
