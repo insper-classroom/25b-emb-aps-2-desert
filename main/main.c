@@ -59,11 +59,12 @@ static SemaphoreHandle_t shoot_sem  = NULL;
 static SemaphoreHandle_t reload_sem = NULL;
 static SemaphoreHandle_t e_sem = NULL;  // Semáforo para tecla E
 
-// Variáveis de debounce (movidas para escopo de arquivo para evitar warning do cppcheck)
-static uint32_t last_toggle_time = 0;
-static uint32_t last_shoot_time  = 0;
-static uint32_t last_reload_time = 0;
-static uint32_t last_e_time = 0;
+// Variáveis de debounce - DEVEM ser volatile pois são acessadas em IRQ
+// e globais pois implementam debounce entre múltiplas chamadas da IRQ
+static volatile uint32_t last_toggle_time = 0;
+static volatile uint32_t last_shoot_time  = 0;
+static volatile uint32_t last_reload_time = 0;
+static volatile uint32_t last_e_time = 0;
 
 // ===================== Protos =====================
 static void mpu6050_reset(void);
@@ -366,5 +367,6 @@ int main(void) {
 
     vTaskStartScheduler();
     while (true) {
+        // nunca deveria chegar aqui
     }
 }
