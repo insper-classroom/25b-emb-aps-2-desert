@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "main/FREERTOS_KERNEL",
+		"source" : "FreeRTOS-Kernel/portable/ThirdParty/GCC/RP2350_ARM_NTZ"
+	}
+}
