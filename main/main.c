@@ -29,7 +29,6 @@
 #define BTN_RELOAD_GPIO     10      // Botão reload (tecla R)
 #define BTN_TOGGLE_GPIO     12      // Botão liga/desliga CONTROLE
 #define LED_STATUS_GPIO     15      // LED indicador (controle ligado/desligado)
-#define DEBOUNCE_MS         80      // Debounce
 
 #ifndef USE_PICO_DOCK
 #  define I2C_SDA_GPIO 4
@@ -57,14 +56,7 @@ typedef struct {
 static SemaphoreHandle_t toggle_sem = NULL;
 static SemaphoreHandle_t shoot_sem  = NULL;
 static SemaphoreHandle_t reload_sem = NULL;
-static SemaphoreHandle_t e_sem = NULL;  // Semáforo para tecla E
-
-// Variáveis de debounce - DEVEM ser volatile pois são acessadas em IRQ
-// e globais pois implementam debounce entre múltiplas chamadas da IRQ
-static volatile uint32_t last_toggle_time = 0;
-static volatile uint32_t last_shoot_time  = 0;
-static volatile uint32_t last_reload_time = 0;
-static volatile uint32_t last_e_time = 0;
+static SemaphoreHandle_t e_sem = NULL;
 
 // ===================== Protos =====================
 static void mpu6050_reset(void);
@@ -141,29 +133,16 @@ static gyro_bias_t calibrate_gyro_bias(void) {
 
 // ===================== GPIO Callback ==============
 static void gpio_callback(uint gpio, uint32_t events) {
-    uint32_t now = to_ms_since_boot(get_absolute_time());
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     if (gpio == BTN_TOGGLE_GPIO && (events & GPIO_IRQ_EDGE_FALL)) {
-        if ((now - last_toggle_time) > DEBOUNCE_MS) {
-            last_toggle_time = now;
-            xSemaphoreGiveFromISR(toggle_sem, &xHigherPriorityTaskWoken);
-        }
+        xSemaphoreGiveFromISR(toggle_sem, &xHigherPriorityTaskWoken);
     } else if (gpio == BTN_E_GPIO && (events & GPIO_IRQ_EDGE_FALL)) {
-        if ((now - last_e_time) > DEBOUNCE_MS) {
-            last_e_time = now;
-            xSemaphoreGiveFromISR(e_sem, &xHigherPriorityTaskWoken);
-        }
+        xSemaphoreGiveFromISR(e_sem, &xHigherPriorityTaskWoken);
     } else if (gpio == BTN_SHOOT_GPIO && (events & GPIO_IRQ_EDGE_FALL)) {
-        if ((now - last_shoot_time) > DEBOUNCE_MS) {
-            last_shoot_time = now;
-            xSemaphoreGiveFromISR(shoot_sem, &xHigherPriorityTaskWoken);
-        }
+        xSemaphoreGiveFromISR(shoot_sem, &xHigherPriorityTaskWoken);
     } else if (gpio == BTN_RELOAD_GPIO && (events & GPIO_IRQ_EDGE_FALL)) {
-        if ((now - last_reload_time) > DEBOUNCE_MS) {
-            last_reload_time = now;
-            xSemaphoreGiveFromISR(reload_sem, &xHigherPriorityTaskWoken);
-        }
+        xSemaphoreGiveFromISR(reload_sem, &xHigherPriorityTaskWoken);
     }
 
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -255,11 +234,14 @@ static void mpu6050_task(void *p) {
     TickType_t last_wake = xTaskGetTickCount();
 
     while (true) {
-        // Liga/Desliga controle
+        // Liga/Desliga controle - debounce via timeout do semáforo
         if (xSemaphoreTake(toggle_sem, 0) == pdTRUE) {
+            // Limpa semáforos extras (debounce)
+            while (xSemaphoreTake(toggle_sem, pdMS_TO_TICKS(80)) == pdTRUE) {
+                // Consome cliques extras do debounce
+            }
+            
             mouse_enabled = !mouse_enabled;
-
-            // Liga/desliga o LED conforme o estado
             gpio_put(LED_STATUS_GPIO, mouse_enabled ? 1 : 0);
 
             printf("\n****************************************\n");
@@ -270,8 +252,13 @@ static void mpu6050_task(void *p) {
 
         // Tecla E (GPIO 11) - Trocar arma
         if (xSemaphoreTake(e_sem, 0) == pdTRUE) {
+            // Limpa semáforos extras (debounce)
+            while (xSemaphoreTake(e_sem, pdMS_TO_TICKS(80)) == pdTRUE) {
+                // Consome cliques extras do debounce
+            }
+            
             printf("\n>>> [GPIO 11] BOTAO E CLICADO! <<<\n");
-            mouse.axis = 6;  // 6 = E key
+            mouse.axis = 6;
             mouse.val  = 1;
             xQueueSend(q, &mouse, 0);
             printf("[UART] Enviado: axis=6, val=1 (TROCAR ARMA E)\n");
@@ -279,8 +266,13 @@ static void mpu6050_task(void *p) {
 
         // Disparo (GPIO 14)
         if (xSemaphoreTake(shoot_sem, 0) == pdTRUE) {
+            // Limpa semáforos extras (debounce)
+            while (xSemaphoreTake(shoot_sem, pdMS_TO_TICKS(80)) == pdTRUE) {
+                // Consome cliques extras do debounce
+            }
+            
             printf("\n>>> [GPIO 14] BOTAO DISPARO CLICADO! <<<\n");
-            mouse.axis = 3;  // 3 = shoot
+            mouse.axis = 3;
             mouse.val  = 1;
             xQueueSend(q, &mouse, 0);
             printf("[UART] Enviado: axis=3, val=1 (DISPARO)\n");
@@ -288,8 +280,13 @@ static void mpu6050_task(void *p) {
 
         // Reload (GPIO 10)
         if (xSemaphoreTake(reload_sem, 0) == pdTRUE) {
+            // Limpa semáforos extras (debounce)
+            while (xSemaphoreTake(reload_sem, pdMS_TO_TICKS(80)) == pdTRUE) {
+                // Consome cliques extras do debounce
+            }
+            
             printf("\n>>> [GPIO 10] BOTAO RELOAD CLICADO! <<<\n");
-            mouse.axis = 7;  // 7 = reload (tecla R)
+            mouse.axis = 7;
             mouse.val  = 1;
             xQueueSend(q, &mouse, 0);
             printf("[UART] Enviado: axis=7, val=1 (RELOAD R)\n");
@@ -299,8 +296,8 @@ static void mpu6050_task(void *p) {
         if (mouse_enabled) {
             mpu6050_read_raw(acceleration, gyro, &temp);
 
-            float gx = (gyro[0] / GYRO_SENS) - bias.bx; // yaw
-            float gy = (gyro[2] / GYRO_SENS) - bias.by; // pitch
+            float gx = (gyro[0] / GYRO_SENS) - bias.bx;
+            float gy = (gyro[2] / GYRO_SENS) - bias.by;
 
             FusionVector gyroscope = {
                 .axis.x = gyro[0] / GYRO_SENS,
