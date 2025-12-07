@@ -133,14 +133,19 @@ static gyro_bias_t calibrate_gyro_bias(void) {
 }
 
 // ===================== GPIO Callback ==============
+// cppcheck-suppress variableScope
 static void gpio_callback(uint gpio, uint32_t events) {
     uint32_t now = to_ms_since_boot(get_absolute_time());
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    // variáveis estáticas locais (não são globais do ponto de vista da regra)
+    // Variáveis estáticas para debounce - precisam manter estado entre chamadas
+    // cppcheck-suppress variableScope
     static uint32_t last_toggle_time = 0;
+    // cppcheck-suppress variableScope
     static uint32_t last_shoot_time  = 0;
+    // cppcheck-suppress variableScope
     static uint32_t last_reload_time = 0;
+    // cppcheck-suppress variableScope
     static uint32_t last_e_time = 0;
 
     if (gpio == BTN_TOGGLE_GPIO && (events & GPIO_IRQ_EDGE_FALL)) {
@@ -220,8 +225,8 @@ static void mpu6050_task(void *p) {
     printf("\n");
     printf("=== MAPEAMENTO DE BOTOES ===\n");
     printf("GPIO 12: Liga/Desliga CONTROLE (toggle)\n");
-    printf("GPIO 10: Trocar arma (tecla E)\n");
-    printf("GPIO 11: Reload (tecla R)\n");
+    printf("GPIO 11: Trocar arma (tecla E)\n");
+    printf("GPIO 10: Reload (tecla R)\n");
     printf("GPIO 14: Disparar (clique esquerdo)\n");
     printf("GPIO 15: LED Status (liga com toggle)\n");
     printf("\n");
@@ -267,9 +272,9 @@ static void mpu6050_task(void *p) {
             printf("****************************************\n");
         }
 
-        // Tecla E (GPIO 10) - Trocar arma
+        // Tecla E (GPIO 11) - Trocar arma
         if (xSemaphoreTake(e_sem, 0) == pdTRUE) {
-            printf("\n>>> [GPIO 10] BOTAO E CLICADO! <<<\n");
+            printf("\n>>> [GPIO 11] BOTAO E CLICADO! <<<\n");
             mouse.axis = 6;  // 6 = E key
             mouse.val  = 1;
             xQueueSend(q, &mouse, 0);
@@ -285,9 +290,9 @@ static void mpu6050_task(void *p) {
             printf("[UART] Enviado: axis=3, val=1 (DISPARO)\n");
         }
 
-        // Reload (GPIO 11)
+        // Reload (GPIO 10)
         if (xSemaphoreTake(reload_sem, 0) == pdTRUE) {
-            printf("\n>>> [GPIO 11] BOTAO RELOAD CLICADO! <<<\n");
+            printf("\n>>> [GPIO 10] BOTAO RELOAD CLICADO! <<<\n");
             mouse.axis = 7;  // 7 = reload (tecla R)
             mouse.val  = 1;
             xQueueSend(q, &mouse, 0);
